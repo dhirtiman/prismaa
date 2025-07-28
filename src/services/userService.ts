@@ -1,37 +1,72 @@
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from "../generated/prisma";
 const prisma = new PrismaClient();
+import bcrypt from "bcrypt";
+import { userInput } from "../schemas/userSchema";
 
+async function hashPassword(password: string): Promise<string> {
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+  return hashedPassword;
+}
 
+async function checkPassword(
+  password: string,
+  hashedPassword: string
+): Promise<boolean> {
+  const isMatch = await bcrypt.compare(password, hashedPassword);
+  return isMatch;
+}
 
-
+async function login(username: string, password: string) {
+  const user = await prisma.users.findFirst({
+    where: {
+      username,
+    },
+  });
+  if (user) {
+    const isMatch = await checkPassword(password, user.password);
+    if (!isMatch) {
+      return new Error("invalid password");
+    }
+    return user;
+  }
+  return new Error("user not found");
+}
 
 async function createUser(
-    username: string,
-    password: string,
-    firstName: string,
-    lastName: string
-  ) {
+  username: string,
+  password: string,
+  firstName: string,
+  lastName: string
+): Promise<userInput | Error> {
+  const hashedPassword = await hashPassword(password);
+
+  try {
     const res = await prisma.users.create({
       data: {
         username,
-        password,
+        password: hashedPassword,
         firstName,
         lastName,
       },
     });
-  
-    console.log(res);
+
+    return res;
+  } catch (error: any) {
+    return error;
   }
-  
-  interface UpdateParams {
-    firstName: string;
-    lastName: string;
-  }
-  
-  async function updateUser(
-    username: string,
-    { firstName, lastName }: UpdateParams
-  ) {
+}
+
+interface UpdateParams {
+  firstName: string;
+  lastName: string;
+}
+
+async function updateUser(
+  username: string,
+  { firstName, lastName }: UpdateParams
+) {
+  try {
     const res = await prisma.users.update({
       where: {
         username,
@@ -41,19 +76,28 @@ async function createUser(
         lastName,
       },
     });
-    console.log(res);
+
+    return res;
+  } catch (error) {
+    return error;
   }
-  
-  async function getUser(username: string) {
+}
+
+async function getUser(username: string) {
+  try {
     const user = await prisma.users.findFirst({
       where: {
         username,
       },
     });
-    console.log(user);
+    return user;
+  } catch (error) {
+    return error;
   }
-  
-  async function createTodo(user_id: number, title: string, description: string) {
+}
+
+async function createTodo(user_id: number, title: string, description: string) {
+  try {
     const res = await prisma.todos.create({
       data: {
         title,
@@ -61,44 +105,48 @@ async function createUser(
         user_id,
       },
     });
-    console.log(res);
+    return res;
+  } catch (error) {
+    return error;
   }
-  
-  const getTodos = async (user_id: number) => {
+}
+
+const getTodos = async (user_id: number) => {
+  try {
     const todos = await prisma.todos.findMany({
       where: {
         user_id,
       },
     });
-    console.log(todos);
-  };
-  
-  const getDetails = async (username: string) => {
-    const res = await prisma.users.findFirst({
-      where: { username },
-      // include: { todos: true },
-      select: {
-          username: true,
-          firstName: true,
-          lastName: true,
-          todos: {
-              select: {
-                  title: true,
-                  description: true,
-                  done: true,
-              }
-          }
-      }
-    });
-    console.log(res);
-    
-  };
+    return todos;
+  } catch (error) {
+    return error;
+  }
+};
 
-  export { createUser, updateUser, getUser, createTodo, getTodos, getDetails };
+const getDetails = async (username: string) => {
+  const res = await prisma.users.findFirst({
+    where: { username },
+    // include: { todos: true },
+    select: {
+      username: true,
+      firstName: true,
+      lastName: true,
+      todos: {
+        select: {
+          title: true,
+          description: true,
+          done: true,
+        },
+      },
+    },
+  });
+  console.log(res);
+};
 
+export { createUser, updateUser, getUser, createTodo, getTodos, getDetails };
 
-
-  // async function main() {
+// async function main() {
 //   await getUser("smallpp");
 //   await updateUser("smallpp", { firstName: "Dhirtiman", lastName: "Khati" });
 //   await getUser("smallpp");
@@ -113,7 +161,6 @@ async function createUser(
 // createTodo(1,'cook','make roti at 8:30 pm')
 
 // getTodos(1);
-
 
 // getDetails("smallpp");
 // getDetails("susi");

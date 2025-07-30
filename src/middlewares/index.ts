@@ -7,8 +7,16 @@ const JWT_SECRET: string = process.env.JWT_SECRET as string;
 
 // Extend Express Request interface to include userid
 
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: number,
+    [key: string]: any;
+  };
+}
 
-const auth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+
+
+const auth = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   const header = req.headers.authorization;
   if (!header) {
     res.status(401).json({
@@ -19,8 +27,10 @@ const auth = async (req: Request, res: Response, next: NextFunction): Promise<vo
   if (header.startsWith("Bearer ")) {
     try {
       const decoded = jwt.verify(header.split(" ")[1], JWT_SECRET) as JwtPayload;
-      if (typeof decoded === "object" && "userid" in decoded) {
-        req.query.userid = decoded.userid as string;
+      if (typeof decoded === "object" && "id" in decoded) {
+        req.user = {
+          id: decoded.id as number
+        }
         next();
       } else {
         res.status(403).json({
@@ -38,4 +48,4 @@ const auth = async (req: Request, res: Response, next: NextFunction): Promise<vo
   }
 };
 
-export { auth };
+export { auth, AuthenticatedRequest };
